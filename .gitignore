@@ -1,0 +1,5 @@
+.idea
+.svn
+go.mod
+go.sum
+*.db
