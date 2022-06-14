@@ -187,6 +187,7 @@ LOOP:
 			log.Errorf("Failed to decode JSON, content is [%s]: [%s]", string(buf[:n]), e)
 			break
 		}
+		// TODO 参数校验
 		switch task.Action {
 		case "create":
 			{
@@ -319,7 +320,7 @@ func detect(task *DetectTask) {
 			rs = doHttping(task.Param)
 		} else if task.Type == "netupdown" {
 			rs = doNetUpDown(task.Param)
-		} else if task.Type == "tcpudp" {
+		} else if task.Type == "tcp" {
 			rs = doTcp(task.Param)
 		} else {
 			log.Errorf("The task [%s], unknown type [%s]", task.TaskId, task.Type)
