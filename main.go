@@ -131,7 +131,7 @@ func doHttping(param string) string {
 func doTcp(param string) string {
 	conn, err := net.DialTimeout("tcp", param, 2*time.Second)
 	if err != nil {
-		log.Errorf("Failed to establish connection with [%s]: %s", param, err)
+		//log.Errorf("Failed to establish connection with [%s]: %s", param, err)
 		return "false"
 	}
 	conn.Close()
@@ -307,12 +307,6 @@ func detect(task *DetectTask) {
 	ticker := time.NewTicker(time.Duration(task.Interval) * time.Second)
 	defer ticker.Stop()
 	for {
-		select {
-		case <-quit:
-			log.Infof("The task [%s] exit", task.TaskId)
-			return
-		case <-ticker.C:
-		}
 		var rs string
 		if task.Type == "ping" {
 			rs = doPing(task.Param)
@@ -332,10 +326,16 @@ func detect(task *DetectTask) {
 		client, err := net.DialTimeout("tcp", task.ReportAddr, 2*time.Second)
 		if err != nil {
 			log.Errorf("Failed to establish connection with [%s]: %s", task.ReportAddr, err)
-			continue
+		} else {
+			_, _ = client.Write([]byte(response))
+			_ = client.Close()
 		}
-		_, err = client.Write([]byte(response))
-		err = client.Close()
+		select {
+		case <-quit:
+			log.Infof("The task [%s] exit", task.TaskId)
+			return
+		case <-ticker.C:
+		}
 	}
 }
 
