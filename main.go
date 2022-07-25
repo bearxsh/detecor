@@ -15,6 +15,7 @@ import (
 	"path"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -55,6 +56,7 @@ func init() {
 	flag.Parse()
 	// 初始化日志
 	log.SetReportCaller(true)
+	log.SetLevel(log.WarnLevel)
 	log.SetFormatter(&log.TextFormatter{
 		// 注意：2006-01-02 15:04:05.000 是固定的，不能改动！
 		TimestampFormat: "2006-01-02 15:04:05.000",
@@ -155,6 +157,54 @@ func doPing(param string) string {
 	}
 	result := string(output)
 	return result[:len(result)-1]
+}
+
+func checkDisk() bool {
+	command := "df | grep '/disk' | awk {'print $6'}"
+	output, err := exec.Command("/bin/sh", "-c", command).Output()
+	if err != nil {
+		log.Errorf("Failed to exec command [%s]: %s", command, err)
+		return false
+	}
+	var paths []string
+	paths = append(paths, "/config")
+	if len(output) > 0 {
+		split := strings.Split(string(output), "\n")
+		paths = append(paths, split...)
+	}
+	for _, p := range paths {
+		if p == "" {
+			continue
+		}
+		if !doCheckDisk(p) {
+			return false
+		}
+	}
+	return true
+}
+
+// caller must ensure the path exist.
+func doCheckDisk(path string) bool {
+	path = path + "/disk_check.txt"
+	f, err := os.Create(path)
+	if err != nil {
+		log.Errorf("Failed to create file [%s]: %s", path, err)
+		return false
+	}
+	if _, err = f.Write([]byte("hello")); err != nil {
+		log.Errorf("Failed to write file [%s]: %s", path, err)
+		return false
+	}
+	err = f.Close()
+	if err != nil {
+		log.Errorf("Failed to close file [%s]: %s", path, err)
+		return false
+	}
+	if err = os.Remove(path); err != nil {
+		log.Errorf("Failed to delete file [%s]: %s", path, err)
+		return false
+	}
+	return true
 }
 
 func handleConn(conn net.Conn) {
@@ -298,7 +348,6 @@ LOOP:
 	if e != nil {
 		log.Errorf("Failed to write: %s", e)
 	}
-
 }
 
 func detect(task *DetectTask) {
@@ -316,6 +365,8 @@ func detect(task *DetectTask) {
 			rs = doNetUpDown(task.Param)
 		} else if task.Type == "tcp" {
 			rs = doTcp(task.Param)
+		} else if task.Type == "disk" {
+			rs = strconv.FormatBool(checkDisk())
 		} else {
 			log.Errorf("The task [%s], unknown type [%s]", task.TaskId, task.Type)
 			continue
