@@ -67,9 +67,21 @@ func init() {
 			return frame.Function, fileName + ":" + strconv.Itoa(frame.Line)
 		},
 	})
-	// 初始化数据库
 	var err error
-	db, err = gorm.Open(sqlite.Open("detector.db"), &gorm.Config{
+	dbDir := "/config/sysconf"
+	// 创建数据库目录
+	if err = os.MkdirAll(dbDir, 0755); err != nil {
+		panic(err)
+	}
+	// 写入日志文件
+	file, err := os.OpenFile(dbDir + "/detector.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+		log.SetOutput(file)
+	} else {
+		panic(err)
+	}
+	// 初始化数据库
+	db, err = gorm.Open(sqlite.Open(dbDir + "/detector.db"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Warn),
 	})
 	if err != nil {
@@ -415,6 +427,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("The server starts successfully, listening on port [%d].\n", bindPort)
 	log.Infof("The server starts successfully, listening on port [%d].", bindPort)
 	for {
 		accept, err := listen.Accept()
